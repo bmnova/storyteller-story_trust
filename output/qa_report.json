@@ -1,0 +1,175 @@
+{
+  "run_id": "run_40ce3cc66b",
+  "created_at": "2026-05-24T22:53:26.101256Z",
+  "tenant_id": "tenant_antarctic_league_001",
+  "tenant_name": "Antarctic Football League",
+  "source_label": "data/sample_response.json",
+  "summary": {
+    "stories_checked": 3,
+    "passed": 1,
+    "needs_review": 1,
+    "blocked": 1,
+    "average_trust_score": 56.67
+  },
+  "stories": [
+    {
+      "story_id": "story_123",
+      "story_title": "Last 5 meetings: Penguin FC vs Seals United",
+      "verdict": "review",
+      "risk_score": 30,
+      "trust_score": 70,
+      "issues": [
+        {
+          "severity": "high",
+          "code": "CTA_DESTINATION_MISMATCH",
+          "story_id": "story_123",
+          "page_id": "page_2",
+          "message": "CTA implies ticket purchase but destination path is not ticket-related.",
+          "evidence": {
+            "cta": "Buy tickets",
+            "url": "https://antarcticfootballleague.com/highlights",
+            "path": "/highlights"
+          },
+          "recommendation": "Change CTA text or route URL to a ticket purchase destination.",
+          "source": "rule"
+        }
+      ],
+      "ai_provider": "disabled",
+      "ai_summary": "AI evaluation disabled.",
+      "ai_confidence": 0.0
+    },
+    {
+      "story_id": "story_124",
+      "story_title": "Matchday build-up: PFC v SU",
+      "verdict": "pass",
+      "risk_score": 0,
+      "trust_score": 100,
+      "issues": [],
+      "ai_provider": "disabled",
+      "ai_summary": "AI evaluation disabled.",
+      "ai_confidence": 0.0
+    },
+    {
+      "story_id": "story_125",
+      "story_title": "",
+      "verdict": "block",
+      "risk_score": 100,
+      "trust_score": 0,
+      "issues": [
+        {
+          "severity": "medium",
+          "code": "MISSING_STORY_TITLE",
+          "story_id": "story_125",
+          "page_id": null,
+          "message": "Story title is empty.",
+          "evidence": {
+            "story_title": ""
+          },
+          "recommendation": "Provide a concise descriptive story title.",
+          "source": "rule"
+        },
+        {
+          "severity": "high",
+          "code": "TENANT_CONTEXT_MISMATCH",
+          "story_id": "story_125",
+          "page_id": null,
+          "message": "Story context tenant does not match batch tenant.",
+          "evidence": {
+            "context_tenant": "Wrong Tenant",
+            "batch_tenant": "Antarctic Football League"
+          },
+          "recommendation": "Sync story context tenant with the owning tenant.",
+          "source": "rule"
+        },
+        {
+          "severity": "medium",
+          "code": "INVALID_PUBLISH_DATE",
+          "story_id": "story_125",
+          "page_id": null,
+          "message": "Publish date is not ISO-compatible.",
+          "evidence": {
+            "publish_date": "14-02-2026"
+          },
+          "recommendation": "Use ISO date format such as YYYY-MM-DD.",
+          "source": "rule"
+        },
+        {
+          "severity": "medium",
+          "code": "UNSUPPORTED_MEDIA_TYPE",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "Page media type is not supported.",
+          "evidence": {
+            "page_type": "gif"
+          },
+          "recommendation": "Use page type 'image' or 'video'.",
+          "source": "rule"
+        },
+        {
+          "severity": "high",
+          "code": "MISSING_ASSET_URL",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "Page asset URL is missing.",
+          "evidence": {
+            "asset_url": ""
+          },
+          "recommendation": "Attach a valid media asset URL before publishing.",
+          "source": "rule"
+        },
+        {
+          "severity": "medium",
+          "code": "EXTERNAL_DOMAIN_RISK",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "CTA URL points to a domain not clearly related to tenant.",
+          "evidence": {
+            "url": "https://unknown-partner.invalid/promo",
+            "domain": "unknown-partner.invalid"
+          },
+          "recommendation": "Verify destination domain or whitelist trusted partner domains.",
+          "source": "rule"
+        },
+        {
+          "severity": "high",
+          "code": "DUPLICATE_PAGE_ID",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "Duplicate page_id detected in story pages.",
+          "evidence": {
+            "page_id": "page_1"
+          },
+          "recommendation": "Ensure each page has a unique page_id.",
+          "source": "rule"
+        },
+        {
+          "severity": "medium",
+          "code": "MISSING_CTA",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "Page action CTA text is missing.",
+          "evidence": {
+            "cta": ""
+          },
+          "recommendation": "Add a CTA text aligned with the intended action.",
+          "source": "rule"
+        },
+        {
+          "severity": "high",
+          "code": "MISSING_ACTION_URL",
+          "story_id": "story_125",
+          "page_id": "page_1",
+          "message": "Page action URL is missing.",
+          "evidence": {
+            "url": ""
+          },
+          "recommendation": "Provide a destination URL for the CTA.",
+          "source": "rule"
+        }
+      ],
+      "ai_provider": "disabled",
+      "ai_summary": "AI evaluation disabled.",
+      "ai_confidence": 0.0
+    }
+  ]
+}

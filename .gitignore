@@ -3,6 +3,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-output/
+output/*
+!output/qa_report.json
+!output/qa_report.md
 *.db
 .DS_Store
