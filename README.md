@@ -1,5 +1,30 @@
 # Story QA Service — Automated Content Trust Checks
 
+## TL;DR
+
+This prototype is a backend-style Story Trust QA service. It takes structured Story batch data, runs deterministic checks plus optional AI semantic evaluation, and returns a 0–100 Trust Score with `pass` / `review` / `block` verdicts.
+
+For the take-home, it can be run locally via CLI or dashboard. In production, the same pipeline would run as a worker on every synced Story batch.
+
+The prototype does not require an API key to run. Without keys, it falls back to deterministic mock-AI heuristics so reviewers can still inspect the full pipeline.
+
+**Example result:**
+
+```json
+{
+  "story_id": "story_123",
+  "trust_score": 84,
+  "verdict": "review",
+  "issues": [
+    {
+      "code": "CTA_DESTINATION_MISMATCH",
+      "severity": "high",
+      "message": "CTA says 'Buy tickets' but the URL points to /highlights."
+    }
+  ]
+}
+```
+
 A backend-style **Content Trust & QA** service for high-volume Stories content: repeatable, automatic checks on every synced batch (not one-off manual review). The prototype runs locally; the same pipeline maps to a production worker or API on continuous ingest.
 
 Reports are generated locally under `output/` (e.g. `qa_report.json`, `qa_report.md`) when you run the CLI below.
@@ -24,6 +49,8 @@ The core problem is not one-off moderation. It is a **scalable publishing confid
 - SQLite persistence of runs and story-level issues.
 - Web dashboard to inspect runs, story verdicts, and issue details.
 - JSON + Markdown report generation for sharing with operations/product teams.
+
+I intentionally kept the core decision logic small and inspectable. The API/dashboard layer is included only to show how the same pipeline could be used repeatedly by product or operations teams.
 
 ## 3) Architecture
 
@@ -145,7 +172,7 @@ python -m pytest -q tests/test_live_llm_smoke.py
 - `data/sample_response.json` includes three stories: two typical payloads (`story_123`, `story_124`) and `story_125` with intentional defects (empty title, duplicate `page_id`, bad date, external domain, etc.) so blocked/review outcomes are visible in one run.
 - On a rules-only run, `story_123` is typically **review** (e.g. “Buy tickets” CTA pointing at `/highlights`); `story_124` **pass**; `story_125` **block**.
 
-## AI workflow
+## 6) AI Workflow
 
 1. **Ingest** — `TenantBatchInput` validates the batch JSON (`tenant_id`, `stories`, pages, context).
 2. **Deterministic checks** — `app/checks.py` (metadata, media type, duplicate IDs, CTA/URL alignment, domain risk).
@@ -155,7 +182,7 @@ python -m pytest -q tests/test_live_llm_smoke.py
 
 **LLM prompt (summary)** — system: content-trust QA evaluator; return strict JSON only. User payload includes `tenant_name`, full `story` object, evaluation focus (semantic mismatches, context, CTA quality), and `required_schema` for `summary`, `confidence`, and `issues[]`. Implementation: `AISemanticEvaluator._build_prompt_payload()` in `app/ai_evaluator.py`. Provider failures are logged to `output/ai_evaluator.log`; pipeline continues via `mock-ai` heuristics.
 
-## 6) API Endpoints
+## 7) API Endpoints
 
 - `GET /health` — service health check
 - `POST /qa/run` — run QA on incoming payload; query params: `use_ai` (default `true`), `persist` (default `true`), `source_label` (default `api_payload`)
@@ -164,7 +191,7 @@ python -m pytest -q tests/test_live_llm_smoke.py
 - `GET /qa/runs/{run_id}` - run summary + story results
 - `GET /qa/stories/{story_result_id}` - story detail with issues
 
-## 7) Trust Score and Verdict Logic
+## 8) Trust Score and Verdict Logic
 
 - `trust_score = max(0, 100 - risk_score)`
 - Verdict bands:
@@ -175,7 +202,7 @@ python -m pytest -q tests/test_live_llm_smoke.py
   - any `critical` issue => force `block` (trust capped at 59)
   - any `high` issue => if trust band would be `pass`, verdict becomes `review` (trust set to 84)
 
-## 8) Included Check Types
+## 9) Included Check Types
 
 Checks run in `app/pipeline.py`: deterministic rules first (`app/checks.py`), then optional AI (`app/ai_evaluator.py`). Issue `code` values below match what appears in reports and the dashboard.
 
@@ -215,7 +242,7 @@ When `--use-ai` / `use_ai=true`:
 
 **Note:** `TENANT_CONTEXT_MISMATCH` (rule) and `SEMANTIC_TENANT_MISMATCH` (mock-ai) can both appear on one story when AI is enabled without a live LLM. With a live LLM, mock heuristics are not used for that run.
 
-## 9) LLM Configuration
+## 10) LLM Configuration
 
 - Provider failover is supported: evaluator tries providers in `STORY_TRUST_AI_PROVIDERS` order (default: `openai,gemini`).
 - OpenAI:
@@ -228,9 +255,9 @@ When `--use-ai` / `use_ai=true`:
 - AI provider failures and fallback reasons are logged to `output/ai_evaluator.log`.
 - `.env` is auto-loaded by both API server and CLI runner.
 
-## 10) What Is Deliberately Not Built Yet
+## 11) What Is Deliberately Not Built Yet
 
-V1 evaluates **structured batch JSON** only (titles, context, CTA text, URLs, page types). It does **not** download or analyze story media pixels. The items below are intentionally out of scope for this prototype; section 11 lists the planned follow-ups.
+V1 evaluates **structured batch JSON** only (titles, context, CTA text, URLs, page types). It does **not** download or analyze story media pixels. The items below are intentionally out of scope for this prototype; section 12 lists the planned follow-ups.
 
 | Not in V1 | Meaning |
 | --- | --- |
@@ -239,11 +266,11 @@ V1 evaluates **structured batch JSON** only (titles, context, CTA text, URLs, pa
 | **Distributed ingest workers** | No Celery/Kafka (or similar) queue; QA runs are on demand via CLI, API, or dashboard. |
 | **Autonomous CMS publish control** | Verdicts are advisory (`pass` / `review` / `block`); upstream CMS is not blocked automatically (see section 4). |
 
-## 11) What To Build Next With Engineering Support
+## 12) What To Build Next With Engineering Support
 
-Natural extensions after the V1 prototype, mapped to the gaps in section 10:
+Natural extensions after the V1 prototype, mapped to the gaps in section 11:
 
-| Next step | Addresses (section 10) |
+| Next step | Addresses (section 11) |
 | --- | --- |
 | **Event-driven workers** — run QA on each story sync/update via a job queue | Distributed ingest workers |
 | **Tenant rule packs and allowlists** — per-`tenant_id` domain lists, CTA patterns, severity overrides (code/config first; UI later) | Tenant policy builder UI |
