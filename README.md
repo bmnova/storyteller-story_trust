@@ -16,7 +16,7 @@ The core problem is not one-off moderation. It is a **scalable publishing confid
 
 - FastAPI backend with repeatable QA run endpoint.
 - Deterministic checks for structural and policy issues.
-- AI semantic evaluator layer with real LLM support (`OPENAI_API_KEY`) and mock fallback.
+- AI semantic evaluator layer with real LLM support (OpenAI `OPENAI_API_KEY` and/or Google Gemini `GEMINI_API_KEY` / `GOOGLE_API_KEY`) and mock fallback.
 - Scoring engine with:
   - Internal `risk_score`
   - Product-facing `trust_score` where `100 = best`
@@ -48,29 +48,13 @@ flowchart TD
 
 ## 5) Run Locally
 
-From the project root (this repo):
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-python -m pip install -r requirements.txt
-```
-
-Commands below assume the virtualenv is **activated** (`source .venv/bin/activate`), or prefix with `.venv/bin/` (e.g. `.venv/bin/python -m app.run_once ...`).
-
-Configure environment (do this before starting the server or enabling `--use-ai`):
-
-```bash
-cp .env.example .env
-# Optional: set OPENAI_API_KEY and/or GEMINI_API_KEY in .env for live LLM checks
-```
-
 ### Quick start with `run_dev.sh` (first-time reviewers)
 
 Recommended path to run the API and dashboard without manual venv/uvicorn steps. The script creates `.venv` if needed, installs dependencies when asked, picks a free port if the default is busy, and prints the dashboard URL.
 
 ```bash
 cp .env.example .env
+# Optional: set OPENAI_API_KEY and/or GEMINI_API_KEY in .env for live LLM checks
 chmod +x run_dev.sh
 ./run_dev.sh --install
 ```
@@ -92,7 +76,26 @@ Examples:
 ```
 
 After startup, open the URL printed in the terminal (typically `http://127.0.0.1:8000/dashboard`). API docs: `http://127.0.0.1:<port>/docs`. Use **Trigger New Run** to paste JSON or upload a file. The **Use AI semantic evaluator** checkbox is on by default; uncheck it for rules-only runs. With the checkbox on and no API keys in `.env`, the pipeline falls back to `mock-ai` heuristics.
-z
+
+### Manual setup
+
+From the project root (this repo):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m pip install -r requirements.txt
+```
+
+Commands below assume the virtualenv is **activated** (`source .venv/bin/activate`), or prefix with `.venv/bin/` (e.g. `.venv/bin/python -m app.run_once ...`).
+
+Configure environment (do this before starting the server or enabling `--use-ai`):
+
+```bash
+cp .env.example .env
+# Optional: set OPENAI_API_KEY and/or GEMINI_API_KEY in .env for live LLM checks
+```
+
 Run a single automated QA batch from sample data (rules only; fast, no API key):
 
 ```bash
@@ -174,15 +177,43 @@ python -m pytest -q tests/test_live_llm_smoke.py
 
 ## 8) Included Check Types
 
-- Missing or invalid metadata (title, publish date, action URL, CTA)
-- Unsupported media types
-- Duplicate page IDs
-- CTA destination mismatch (for example: `Buy tickets` routed to `/highlights`)
-- External domain risk checks
-- AI semantic quality checks:
-  - weak context coverage for matchup stories
-  - tenant semantic mismatch
-  - overly generic CTA language
+Checks run in `app/pipeline.py`: deterministic rules first (`app/checks.py`), then optional AI (`app/ai_evaluator.py`). Issue `code` values below match what appears in reports and the dashboard.
+
+### Deterministic rules (`source: rule`)
+
+Always run; do not require an API key.
+
+| Code | What it flags |
+| --- | --- |
+| `MISSING_STORY_TITLE` | Empty story title |
+| `MISSING_PUBLISH_DATE` | No publish date in context |
+| `INVALID_PUBLISH_DATE` | Publish date not ISO-parseable |
+| `TENANT_CONTEXT_MISMATCH` | Story `context.tenant` ≠ batch `tenant_name` |
+| `DUPLICATE_PAGE_ID` | Same `page_id` used on more than one page |
+| `UNSUPPORTED_MEDIA_TYPE` | Page `type` not `image` or `video` |
+| `MISSING_ASSET_URL` | Page media URL empty |
+| `MISSING_CTA` | Page action CTA text empty |
+| `MISSING_ACTION_URL` | Page action URL empty |
+| `INVALID_ACTION_URL` | Action URL cannot be parsed (no valid domain) |
+| `CTA_DESTINATION_MISMATCH` | CTA implies tickets (`buy` + `ticket`) but path has no `ticket` (e.g. `Buy tickets` → `/highlights`) |
+| `CTA_INTENT_WEAK_MATCH` | CTA implies highlights (`watch` + `highlight`) but path lacks `highlight` or `report` |
+| `LIVE_CTA_MISMATCH` | CTA implies live content but path has no `live` |
+| `EXTERNAL_DOMAIN_RISK` | CTA domain not clearly related to tenant (tenant tokens not in domain; `*.storyteller.com` allowed) |
+
+### AI semantic layer
+
+When `--use-ai` / `use_ai=true`:
+
+1. **Live LLM** (OpenAI or Gemini, if keys are set) — open-ended semantic review; returns structured JSON (`summary`, `confidence`, `issues[]`). Codes are model-defined (e.g. `AI_SEMANTIC_NOTE` default).
+2. **`mock-ai` fallback** (no keys or all providers fail) — fixed heuristics in `app/ai_evaluator.py`:
+
+| Code | What it flags |
+| --- | --- |
+| `WEAK_CONTEXT_COVERAGE` | Title suggests a matchup (`vs`) but fewer than two context categories |
+| `SEMANTIC_TENANT_MISMATCH` | Same tenant/context mismatch as `TENANT_CONTEXT_MISMATCH`, surfaced again as a semantic signal |
+| `GENERIC_CTA_LANGUAGE` | CTA is `click here`, `learn more`, or `tap now` |
+
+**Note:** `TENANT_CONTEXT_MISMATCH` (rule) and `SEMANTIC_TENANT_MISMATCH` (mock-ai) can both appear on one story when AI is enabled without a live LLM. With a live LLM, mock heuristics are not used for that run.
 
 ## 9) LLM Configuration
 
@@ -199,19 +230,26 @@ python -m pytest -q tests/test_live_llm_smoke.py
 
 ## 10) What Is Deliberately Not Built Yet
 
-- Full visual moderation pipeline (frame-level or OCR-level checks)
-- Tenant policy builder UI
-- Queue/distributed workers (Celery/Kafka)
-- Autonomous publish blocking in upstream CMS
+V1 evaluates **structured batch JSON** only (titles, context, CTA text, URLs, page types). It does **not** download or analyze story media pixels. The items below are intentionally out of scope for this prototype; section 11 lists the planned follow-ups.
+
+| Not in V1 | Meaning |
+| --- | --- |
+| **Visual / media content checks** | No frame-by-frame video review, no image NSFW/logo detection, and no **OCR** (optical character recognition — extracting text from images or video frames). Trust signals come from metadata and links, not from pixels. |
+| **Tenant policy builder UI** | Rules live in code (`app/checks.py`); no self-serve editor for per-tenant allowlists or custom checks. |
+| **Distributed ingest workers** | No Celery/Kafka (or similar) queue; QA runs are on demand via CLI, API, or dashboard. |
+| **Autonomous CMS publish control** | Verdicts are advisory (`pass` / `review` / `block`); upstream CMS is not blocked automatically (see section 4). |
 
 ## 11) What To Build Next With Engineering Support
 
-- Event-driven worker integration on new/updated story sync
-- Tenant-specific rule packs and allowlists
-- Feedback loop (`correct issue`, `false positive`, `ignore`, `new rule`)
-- Monitoring KPIs:
-  - review rate
-  - false positive rate
-  - prevented trust incidents
-  - time-to-fix for high-severity issues
+Natural extensions after the V1 prototype, mapped to the gaps in section 10:
+
+| Next step | Addresses (section 10) |
+| --- | --- |
+| **Event-driven workers** — run QA on each story sync/update via a job queue | Distributed ingest workers |
+| **Tenant rule packs and allowlists** — per-`tenant_id` domain lists, CTA patterns, severity overrides (code/config first; UI later) | Tenant policy builder UI |
+| **Reviewer feedback loop** — `correct issue`, `false positive`, `ignore`, `new rule` to tune rules and cut false positives | — (quality loop) |
+| **Targeted multimodal checks** (optional) — LLM or dedicated services on thumbnails from `asset_url`; not a full frame/OCR moderation pipeline | Visual / media content checks |
+| **Operations KPIs** — review rate, false positive rate, prevented trust incidents, time-to-fix for high-severity issues | — (observability) |
+
+CMS integration can later **consume** verdicts (e.g. hold `block` stories for human review) without turning V1 into an autonomous publish gate — that remains a product/integration choice outside this repo.
 
