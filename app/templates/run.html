@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Run {{ run.id }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #f3f4f6; }
+    .pass { color: #166534; font-weight: bold; }
+    .review { color: #854d0e; font-weight: bold; }
+    .block { color: #991b1b; font-weight: bold; }
+    .log-box {
+      margin-top: 10px;
+      background: #f9fafb;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 10px;
+      max-height: 260px;
+      overflow: auto;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <p><a href="/dashboard">Back to runs</a></p>
+  <h1>Run {{ run.id }}</h1>
+  <p>Tenant: {{ run.tenant_name }} | Created: {{ run.created_at }} | Source: <code>{{ run.source_label }}</code></p>
+  <p>
+    Stories: {{ run.stories_checked }} |
+    Passed: {{ run.passed }} |
+    Review: {{ run.needs_review }} |
+    Blocked: {{ run.blocked }} |
+    Avg trust: {{ run.average_trust_score }}
+  </p>
+
+  <h2>Story Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Story</th>
+        <th>Verdict</th>
+        <th>Trust</th>
+        <th>Risk</th>
+        <th>AI Provider</th>
+        <th>Issue count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for story in stories %}
+      <tr>
+        <td><a href="/dashboard/stories/{{ story.id }}">{{ story.story_id }}</a><br/>{{ story.story_title }}</td>
+        <td class="{{ story.verdict }}">{{ story.verdict|upper }}</td>
+        <td>{{ story.trust_score }}</td>
+        <td>{{ story.risk_score }}</td>
+        <td><code>{{ story.ai_provider }}</code></td>
+        <td>{{ story.issues|length }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Top Issue Codes</h2>
+  <ul>
+    {% for code, count in issue_counts %}
+    <li>{{ code }}: {{ count }}</li>
+    {% endfor %}
+  </ul>
+
+  <h2>Recent AI Error Logs</h2>
+  {% if ai_log_tail|length == 0 %}
+    <p>No AI error logs yet.</p>
+  {% else %}
+    <div class="log-box">
+      {% for line in ai_log_tail %}
+{{ line }}
+      {% endfor %}
+    </div>
+  {% endif %}
+</body>
+</html>
+

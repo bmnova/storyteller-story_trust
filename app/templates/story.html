@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ story.story_id }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+    .card { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .low { border-left: 5px solid #60a5fa; }
+    .medium { border-left: 5px solid #f59e0b; }
+    .high { border-left: 5px solid #f97316; }
+    .critical { border-left: 5px solid #dc2626; }
+    pre { background: #f9fafb; padding: 8px; border-radius: 6px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <p><a href="/dashboard/runs/{{ story.run_id }}">Back to run</a></p>
+  <h1>{{ story.story_id }} — {{ story.story_title }}</h1>
+  <p>Verdict: <strong>{{ story.verdict|upper }}</strong></p>
+  <p>Trust score: <strong>{{ story.trust_score }}</strong> | Risk score: <strong>{{ story.risk_score }}</strong></p>
+  <p>AI provider: <code>{{ story.ai_provider }}</code></p>
+  <p>AI summary: {{ story.ai_summary }} (confidence: {{ story.ai_confidence }})</p>
+
+  <h2>Issues</h2>
+  {% if story.issues|length == 0 %}
+    <p>No issues detected.</p>
+  {% endif %}
+  {% for issue in story.issues %}
+  <div class="card {{ issue.severity }}">
+    <p><strong>{{ issue.severity|upper }} — {{ issue.code }}</strong> ({{ issue.source }})</p>
+    <p>{{ issue.message }}</p>
+    <p><strong>Recommendation:</strong> {{ issue.recommendation }}</p>
+    <pre>{{ issue.evidence }}</pre>
+  </div>
+  {% endfor %}
+</body>
+</html>
+

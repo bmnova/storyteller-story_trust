@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+jinja2
+pydantic
+openai
+google-genai
+python-dotenv
+python-multipart
+pytest
+

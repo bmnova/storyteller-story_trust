@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Story QA Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #1f2937; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+    th { background: #f3f4f6; }
+    textarea, input[type="text"] { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 6px; }
+    .panel { border: 1px solid #d1d5db; padding: 14px; border-radius: 8px; margin-bottom: 20px; }
+    .run-button { margin-top: 10px; padding: 8px 14px; cursor: pointer; }
+    .run-button[disabled] { opacity: 0.7; cursor: not-allowed; }
+    .loading-note { margin-top: 8px; font-size: 13px; color: #6b7280; display: none; }
+    .badge { padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+    .pass { background: #dcfce7; color: #166534; }
+    .review { background: #fef9c3; color: #854d0e; }
+    .block { background: #fee2e2; color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h1>Story QA Dashboard</h1>
+  <p>Recent automated QA runs</p>
+
+  <div class="panel">
+    <h2>Trigger New Run</h2>
+    <form id="run-form" method="post" action="/dashboard/run" enctype="multipart/form-data">
+      <label for="source_label">Source label</label>
+      <input id="source_label" name="source_label" type="text" value="data/sample_response.json" />
+
+      <label for="payload_file">Upload JSON file (optional)</label>
+      <input id="payload_file" name="payload_file" type="file" accept=".json,application/json" />
+
+      <label for="payload_json">Payload JSON</label>
+      <textarea id="payload_json" name="payload_json" rows="16">{{ sample_payload }}</textarea>
+
+      <label>
+        <input type="checkbox" name="use_ai" checked />
+        Use AI semantic evaluator
+      </label>
+
+      <div>
+        <button id="run-button" class="run-button" type="submit">Run QA</button>
+        <div id="loading-note" class="loading-note">Running QA... please wait.</div>
+      </div>
+    </form>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Run ID</th>
+        <th>Created At</th>
+        <th>Tenant</th>
+        <th>Source</th>
+        <th>Stories</th>
+        <th>Passed</th>
+        <th>Review</th>
+        <th>Blocked</th>
+        <th>Avg Trust</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td><a href="/dashboard/runs/{{ run.id }}">{{ run.id }}</a></td>
+        <td>{{ run.created_at }}</td>
+        <td>{{ run.tenant_name }}</td>
+        <td><code>{{ run.source_label }}</code></td>
+        <td>{{ run.stories_checked }}</td>
+        <td>{{ run.passed }}</td>
+        <td>{{ run.needs_review }}</td>
+        <td>{{ run.blocked }}</td>
+        <td>{{ run.average_trust_score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    const payloadFileInput = document.getElementById("payload_file");
+    const payloadTextarea = document.getElementById("payload_json");
+    const sourceLabelInput = document.getElementById("source_label");
+    const runForm = document.getElementById("run-form");
+    const runButton = document.getElementById("run-button");
+    const loadingNote = document.getElementById("loading-note");
+
+    payloadFileInput.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      if (!sourceLabelInput.value || sourceLabelInput.value === "data/sample_response.json") {
+        sourceLabelInput.value = file.name;
+      }
+
+      try {
+        const text = await file.text();
+        payloadTextarea.value = text;
+      } catch (_error) {
+        // Keep server-side upload handling as fallback if browser read fails.
+      }
+    });
+
+    runForm.addEventListener("submit", () => {
+      runButton.disabled = true;
+      runButton.textContent = "Running...";
+      loadingNote.style.display = "block";
+    });
+  </script>
+</body>
+</html>
+
